@@ -1,0 +1,338 @@
+# -*- coding: utf-8 -*-
+import pprint
+import matplotlib.pyplot as plt
+import sys
+import os
+import unicodedata
+
+# Configurar encoding para salida en Windows
+if sys.stdout.encoding != 'utf-8':
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+
+def remover_acentos(texto):
+    """
+    Elimina acentos y caracteres especiales de un texto.
+    Convierte caracteres acentuados a sus equivalentes sin acento.
+    """
+    if isinstance(texto, str):
+        nfd = unicodedata.normalize('NFD', texto)
+        return ''.join(char for char in nfd if unicodedata.category(char) != 'Mn')
+    return texto
+import matplotlib.patches as patches
+from matplotlib.patches import FancyBboxPatch
+import numpy as np
+
+def obtener_nombre_direccion(dr, dc):
+    """Convierte un par (dr, dc) a un nombre de direcciOn legible."""
+    if dr == 0 and dc == 1: return "Horizontal (Derecha)"
+    if dr == 0 and dc == -1: return "Horizontal (Izquierda)"
+    if dr == 1 and dc == 0: return "Vertical (Abajo)"
+    if dr == -1 and dc == 0: return "Vertical (Arriba)"
+    if dr == 1 and dc == 1: return "Diagonal (Abajo-Derecha)"
+    if dr == -1 and dc == -1: return "Diagonal (Arriba-Izquierda)"
+    if dr == 1 and dc == -1: return "Diagonal (Abajo-Izquierda)"
+    if dr == -1 and dc == 1: return "Diagonal (Arriba-Derecha)"
+    return f"({dr}, {dc})"
+
+def resolver_sopa_de_letras(banco, matriz, case_sensitive=False):
+    """
+    Resuelve la sopa de letras encontrando todas las palabras del banco
+    en la matriz, en las 8 direcciones. Funciona con matrices N-dimensionales
+    (cualquier número de filas y columnas).
+    
+    Args:
+        banco: Lista de palabras a buscar
+        matriz: Lista de listas con letras
+        case_sensitive: Si False, ignora mayúsculas/minúsculas
+    """
+    resultados = {}
+    if not banco or not matriz:
+        return resultados, banco
+
+    filas = len(matriz)
+    if filas == 0:
+        return resultados, banco
+    
+    columnas = len(matriz[0])
+    if columnas == 0:
+        return resultados, banco
+    
+    # Remover acentos y convertir a mayúsculas
+    matriz = [[remover_acentos(celda).upper() if isinstance(celda, str) else celda for celda in fila] for fila in matriz]
+    banco = [remover_acentos(palabra).upper() for palabra in banco]
+    
+    # Definir las 8 direcciones: (cambio_fila, cambio_columna)
+    direcciones = [
+        (0, 1), (0, -1), (1, 0), (-1, 0),
+        (1, 1), (-1, -1), (1, -1), (-1, 1)
+    ]
+    
+    for palabra in banco:
+        largo = len(palabra)
+        palabra_encontrada = False
+        
+        # Iterar sobre cada celda como posible inicio
+        for r_inicio in range(filas):
+            if palabra_encontrada: 
+                break
+            for c_inicio in range(columnas):
+                if palabra_encontrada: 
+                    break
+                
+                # Optimización: si la primera letra no coincide, saltar
+                if matriz[r_inicio][c_inicio] != palabra[0]:
+                    continue
+                    
+                # Si la primera letra coincide, probar las 8 direcciones
+                for dr, dc in direcciones:
+                    match = True
+                    
+                    # Iterar por el resto de la palabra
+                    for i in range(1, largo):
+                        r_actual = r_inicio + i * dr
+                        c_actual = c_inicio + i * dc
+                        
+                        # Verificar límites
+                        if not (0 <= r_actual < filas and 0 <= c_actual < columnas):
+                            match = False
+                            break
+                            
+                        # Verificar si las letras coinciden
+                        if matriz[r_actual][c_actual] != palabra[i]:
+                            match = False
+                            break
+                            
+                    # Si encontramos la palabra
+                    if match:
+                        r_fin = r_inicio + (largo - 1) * dr
+                        c_fin = c_inicio + (largo - 1) * dc
+                        
+                        direccion_str = obtener_nombre_direccion(dr, dc)
+                        
+                        resultados[palabra] = {
+                            "inicio": (r_inicio, c_inicio),
+                            "fin": (r_fin, c_fin),
+                            "direccion": direccion_str
+                        }
+                        palabra_encontrada = True
+                        break
+
+    # Identificar palabras no encontradas
+    palabras_no_encontradas = [p for p in banco if p not in resultados]
+    
+    return resultados, palabras_no_encontradas
+
+def visualizar_sopa_de_letras(matriz, resultados, no_encontradas):
+    """
+    Visualiza la sopa de letras con las palabras encontradas remarcadas
+    con colores diferentes. Se adapta automáticamente al tamaño de la matriz.
+    """
+    filas = len(matriz)
+    columnas = len(matriz[0]) if filas > 0 else 0
+    
+    if filas == 0 or columnas == 0:
+        print("Matriz vacía, no se puede visualizar.")
+        return
+    
+    # Calcular tamaño de figura adaptativo
+    cell_size = 0.8
+    fig_width = max(16, columnas * 0.6)
+    fig_height = max(10, filas * 0.6 + 3)
+    
+    # Crear figura con dos áreas: matriz a la izquierda, leyenda a la derecha
+    fig = plt.figure(figsize=(fig_width, fig_height))
+    
+    # GridSpec para dividir la figura
+    ratio = max(2, columnas / (filas * 0.75)) if filas > 0 else 3
+    gs = fig.add_gridspec(1, 2, width_ratios=[ratio, 1], wspace=0.3)
+    ax_matriz = fig.add_subplot(gs[0])
+    ax_leyenda = fig.add_subplot(gs[1])
+    
+    # Colores para las palabras
+    num_palabras = max(len(resultados), 1)
+    if num_palabras <= 10:
+        colores = plt.cm.tab10(np.linspace(0, 1, num_palabras))
+    elif num_palabras <= 20:
+        colores = plt.cm.tab20(np.linspace(0, 1, num_palabras))
+    else:
+        colores = plt.cm.hsv(np.linspace(0, 1, num_palabras))
+    
+    # Crear una matriz de colores de fondo
+    color_matrix = np.zeros((filas, columnas, 3), dtype=float)
+    color_matrix[:, :] = [1, 1, 1]  # Blanco por defecto
+    
+    # Asignar colores a las palabras encontradas
+    for idx, (palabra, data) in enumerate(resultados.items()):
+        r_inicio, c_inicio = data["inicio"]
+        r_fin, c_fin = data["fin"]
+        dr = 0 if r_fin == r_inicio else (1 if r_fin > r_inicio else -1)
+        dc = 0 if c_fin == c_inicio else (1 if c_fin > c_inicio else -1)
+        
+        # Pintar todas las celdas de la palabra
+        steps = max(abs(r_fin - r_inicio), abs(c_fin - c_inicio)) + 1
+        for step in range(steps):
+            r = r_inicio + step * dr
+            c = c_inicio + step * dc
+            if 0 <= r < filas and 0 <= c < columnas:
+                color_matrix[r, c] = colores[idx, :3]
+    
+    # Dibujar las celdas con las letras en ax_matriz
+    for r in range(filas):
+        for c in range(columnas):
+            # Dibujar rectángulo de fondo
+            rect = patches.Rectangle(
+                (c * cell_size, (filas - r - 1) * cell_size),
+                cell_size, cell_size,
+                linewidth=1.5,
+                edgecolor='black',
+                facecolor=color_matrix[r, c],
+                alpha=0.7
+            )
+            ax_matriz.add_patch(rect)
+            
+            # Escribir la letra
+            fontsize = max(7, min(11, 80 / max(filas, columnas)))
+            ax_matriz.text(
+                c * cell_size + cell_size / 2,
+                (filas - r - 1) * cell_size + cell_size / 2,
+                matriz[r][c],
+                ha='center', va='center',
+                fontsize=fontsize, fontweight='bold',
+                color='black'
+            )
+    
+    # Dibujar líneas sobre las palabras encontradas
+    for idx, (palabra, data) in enumerate(resultados.items()):
+        r_inicio, c_inicio = data["inicio"]
+        r_fin, c_fin = data["fin"]
+        
+        x_inicio = c_inicio * cell_size + cell_size / 2
+        y_inicio = (filas - r_inicio - 1) * cell_size + cell_size / 2
+        x_fin = c_fin * cell_size + cell_size / 2
+        y_fin = (filas - r_fin - 1) * cell_size + cell_size / 2
+        
+        ax_matriz.plot(
+            [x_inicio, x_fin],
+            [y_inicio, y_fin],
+            color=colores[idx],
+            linewidth=3,
+            alpha=0.8
+        )
+    
+    # Configurar los ejes de la matriz
+    ax_matriz.set_xlim(-0.5, columnas * cell_size + 0.5)
+    ax_matriz.set_ylim(-0.5, filas * cell_size + 0.5)
+    ax_matriz.set_aspect('equal')
+    ax_matriz.axis('off')
+    ax_matriz.set_title('Sopa de Letras - Solución', fontsize=16, fontweight='bold', pad=20)
+    
+    # Crear leyenda en ax_leyenda
+    ax_leyenda.axis('off')
+    
+    # Título de leyenda
+    leyenda_y = 0.95
+    encontradas_texto = f"Encontradas: {len(resultados)}/{len(resultados) + len(no_encontradas)}"
+    ax_leyenda.text(0.05, leyenda_y, encontradas_texto, fontsize=11, fontweight='bold', 
+                   transform=ax_leyenda.transAxes, va='top')
+    
+    # Listar las palabras encontradas con su color
+    leyenda_y = 0.88
+    fontsize_leyenda = min(9, max(7, 100 / max(len(resultados), 1)))
+    
+    for idx, (palabra, data) in enumerate(resultados.items()):
+        # Rectángulo de color
+        color_rect = patches.Rectangle(
+            (0.05, leyenda_y - 0.035),
+            0.04, 0.03,
+            facecolor=colores[idx],
+            edgecolor='black',
+            alpha=0.7,
+            transform=ax_leyenda.transAxes
+        )
+        ax_leyenda.add_patch(color_rect)
+        
+        # Texto con palabra y dirección
+        ax_leyenda.text(
+            0.11,
+            leyenda_y - 0.005,
+            f"{palabra} ({data['direccion']})",
+            fontsize=fontsize_leyenda,
+            transform=ax_leyenda.transAxes,
+            va='center'
+        )
+        
+        leyenda_y -= 0.045
+    
+    # Mostrar palabras no encontradas si las hay
+    if no_encontradas:
+        leyenda_y -= 0.02
+        ax_leyenda.text(0.05, leyenda_y, "No encontradas:", fontsize=10, fontweight='bold',
+                       transform=ax_leyenda.transAxes, va='top', color='red')
+        leyenda_y -= 0.04
+        for palabra_no in no_encontradas:
+            ax_leyenda.text(0.05, leyenda_y, f"• {palabra_no}", fontsize=fontsize_leyenda,
+                           transform=ax_leyenda.transAxes, va='top', color='red')
+            leyenda_y -= 0.035
+    
+    plt.suptitle('', fontsize=1)
+    
+    # Guardar la imagen
+    imagen_path = 'sopa_de_letras_solucion.png'
+    plt.savefig(imagen_path, dpi=150, bbox_inches='tight')
+    print(f"[OK] Imagen guardada como: {imagen_path}")
+    
+    # Mostrar la imagen
+    plt.show()
+
+# --- Datos de entrada ---
+
+# 1. Vector (Banco de Palabras)
+banco_de_palabras = [
+    "CENTRIOLOS", 
+    "CICLOCELUAR", 
+    "FASEG1", 
+    "GAMETOGÉNESIS", 
+    "HAPLOIDES", 
+    "INTER", 
+    "MEIOSIS", 
+    "METAFASE", 
+    "MITOSIS", 
+    "PROFASEI", 
+    "SEXUAL"
+]
+
+# 2. Matriz (Sopa de Letras)
+matriz_de_letras = [
+    ['E', 'V', 'T', 'C', 'P', 'O', 'D', 'I', 'P', 'L', 'O', 'H', '1', 'D', 'F'],
+    ['S', 'S', 'D', 'Y', 'R', 'F', 'S', 'C', 'I', 'G', 'O', 'E', 'E', 'E', 'A'],
+    ['E', 'M', 'E', 'I', 'O', 'S', 'I', 'S', 'A', 'A', 'S', 'F', 'D', 'I', 'S'],
+    ['X', 'B', 'I', 'O', 'F', 'I', 'G', 'D', 'E', 'A', 'R', 'A', 'D', 'F', 'E'],
+    ['U', 'C', 'A', 'M', 'A', 'N', 'A', 'G', 'F', 'A', 'R', 'C', 'G', 'T', 'G'],
+    ['A', 'A', 'S', 'B', 'S', 'T', 'N', 'O', 'A', 'R', 'E', 'I', 'A', 'A', '1'],
+    ['L', 'T', 'T', 'U', 'E', 'E', 'R', 'Y', 'R', 'T', 'T', 'L', 'M', 'J', 'N'],
+    ['V', 'M', 'O', 'S', 'T', 'P', 'A', 'A', 'O', 'E', 'N', 'E', 'E', 'U', 'E'],
+    ['C', 'E', 'N', 'T', 'R', 'I', 'O', 'L', 'O', 'S', 'I', 'S', 'T', 'E', 'G'],
+    ['R', 'T', 'A', 'N', 'I', 'M', 'A', 'L', 'E', 'S', 'I', 'O', 'O', 'C', 'H'],
+    ['E', 'A', 'B', 'D', 'U', 'L', 'C', 'E', 'S', 'S', 'N', 'S', 'G', 'J', 'A'],
+    ['P', 'F', 'E', 'G', 'N', 'A', 'G', 'Y', 'O', 'B', 'T', 'P', 'E', 'O', 'P'],
+    ['R', 'A', 'T', 'U', 'M', 'I', 'O', 'T', 'R', 'C', 'E', 'C', 'N', 'M', 'L'],
+    ['O', 'S', 'O', 'B', 'I', 'D', 'I', 'I', 'D', 'T', 'R', 'H', 'E', 'E', 'O'],
+    ['D', 'E', 'A', 'I', 'C', 'M', 'Y', 'T', 'E', 'H', 'E', 'O', 'S', 'X', 'I'],
+    ['U', 'D', 'R', 'O', 'O', 'V', 'B', 'O', 'N', 'I', 'S', 'S', 'I', 'I', 'D'],
+    ['V', 'T', 'R', 'A', 'P', 'S', 'D', 'S', 'E', 'N', 'A', 'O', 'S', 'C', 'E'],
+    ['N', 'C', 'I', 'C', 'L', 'O', 'C', 'E', 'L', 'U', 'A', 'R', 'V', 'O', 'S'],
+    ['I', 'S', 'D', 'T', 'O', 'I', 'G', 'M', 'I', 'A', 'R', 'E', 'N', 'S', 'I']
+]
+
+# --- EjecuciOn ---
+encontradas, no_encontradas = resolver_sopa_de_letras(banco_de_palabras, matriz_de_letras, case_sensitive=False)
+
+print("--- Palabras Encontradas ---")
+pprint.pprint(encontradas)
+print("\n--- Palabras NO Encontradas ---")
+pprint.pprint(no_encontradas)
+
+# Visualizar la sopa de letras
+print("\n--- Generando visualización ---")
+visualizar_sopa_de_letras(matriz_de_letras, encontradas, no_encontradas)
