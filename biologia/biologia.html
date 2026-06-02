@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Avanzado de Ecosistema</title>
+    <style>
+        :root {
+            --sky: #87CEEB;
+            --water-top: #4facfe;
+            --water-bottom: #00f2fe;
+            --ground: #8B4513;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e2f;
+            color: #ffffff;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .simulator-container {
+            display: flex;
+            background-color: #2a2a40;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            overflow: hidden;
+            width: 950px;
+            max-width: 95%;
+        }
+
+        /* --- Panel Visual --- */
+        .visual-panel {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .sky {
+            height: 25%;
+            background-color: var(--sky);
+            position: relative;
+            transition: filter 0.3s;
+        }
+
+        .water {
+            height: 55%;
+            background: linear-gradient(to bottom, var(--water-top), var(--water-bottom));
+            position: relative;
+            transition: filter 0.3s;
+            overflow: hidden;
+        }
+
+        /* Capas de algas */
+        .algae-green {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 40%;
+            background: linear-gradient(to bottom, rgba(34, 139, 34, 0.8), rgba(34, 139, 34, 0));
+            opacity: 0; transition: opacity 0.5s; pointer-events: none; z-index: 5;
+        }
+
+        .algae-brown {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 40%;
+            background: linear-gradient(to bottom, rgba(139, 115, 85, 0.8), rgba(139, 115, 85, 0));
+            opacity: 0; transition: opacity 0.5s; pointer-events: none; z-index: 5;
+        }
+
+        .ground {
+            height: 20%;
+            background-color: var(--ground);
+            border-top: 4px solid #5c3a21;
+            position: relative;
+        }
+
+        /* Entidades animadas */
+        .entity {
+            position: absolute;
+            transition: opacity 0.5s;
+        }
+
+        #bird { top: 10%; right: 10%; font-size: 2.5rem; transform: scaleX(-1); opacity: 0; }
+        
+        #trout { top: 20%; left: 20%; font-size: 2rem; animation: swim 3s infinite alternate ease-in-out; }
+        #carp { top: 40%; left: 50%; font-size: 2.2rem; animation: swim 5s infinite alternate-reverse ease-in-out; }
+        #catfish { bottom: 5%; left: 30%; font-size: 2.5rem; animation: swimBottom 7s infinite alternate ease-in-out; z-index: 10; }
+
+        @keyframes swim {
+            0% { transform: translateX(0px); }
+            100% { transform: translateX(40px); }
+        }
+        @keyframes swimBottom {
+            0% { transform: translateX(0px) translateY(10px); }
+            100% { transform: translateX(60px) translateY(10px); }
+        }
+
+        /* --- Panel de Controles --- */
+        .control-panel {
+            flex: 1;
+            padding: 20px;
+            background-color: #32324e;
+            border-left: 2px solid #1e1e2f;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .control-panel h2 { margin-top: 0; font-size: 1.4rem; text-align: center; }
+        .control-group { display: flex; flex-direction: column; gap: 5px; }
+        label { font-weight: bold; font-size: 0.85rem; display: flex; justify-content: space-between; }
+        input[type="range"] { width: 100%; cursor: pointer; }
+
+        .metrics-box {
+            background-color: #1e1e2f;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
+        .metrics-box p { margin: 5px 0; display: flex; justify-content: space-between; }
+        
+        .status-box {
+            margin-top: auto; padding: 15px; border-radius: 8px;
+            background-color: #1e1e2f; text-align: center; font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="simulator-container">
+        
+        <div class="visual-panel">
+            <div class="sky" id="sky">
+                <div class="entity" id="bird">🦅</div>
+            </div>
+            <div class="water" id="water">
+                <div class="algae-green" id="algae-green"></div>
+                <div class="algae-brown" id="algae-brown"></div>
+                <div class="entity" id="trout" title="Trucha (Agua fría)">🐟</div>
+                <div class="entity" id="carp" title="Carpa (Agua templada)">🐠</div>
+            </div>
+            <div class="ground">
+                <div class="entity" id="catfish" title="Bagre (Fondo resistente)">🐡</div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <h2>Panel de Control</h2>
+            
+            <div class="control-group">
+                <label>Temperatura (°C): <span id="temp-val">20</span></label>
+                <input type="range" id="temp-slider" min="0" max="40" value="20">
+            </div>
+
+            <div class="control-group">
+                <label>Nutrientes (Contaminación %): <span id="nut-val">10</span></label>
+                <input type="range" id="nut-slider" min="0" max="100" value="10">
+            </div>
+
+            <div class="control-group">
+                <label>Luz Solar (%): <span id="light-val">100</span></label>
+                <input type="range" id="light-slider" min="0" max="100" value="100">
+            </div>
+
+            <div class="metrics-box">
+                <p>Oxígeno Disuelto: <span id="o2-val">Alto</span></p>
+                <p>Tipo de Alga: <span id="algae-type">Ninguna</span></p>
+            </div>
+
+            <div class="status-box" id="status-message">
+                Ecosistema Estable
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Referencias DOM
+        const tempS = document.getElementById('temp-slider');
+        const nutS = document.getElementById('nut-slider');
+        const lightS = document.getElementById('light-slider');
+        
+        const tempV = document.getElementById('temp-val');
+        const nutV = document.getElementById('nut-val');
+        const lightV = document.getElementById('light-val');
+        const o2V = document.getElementById('o2-val');
+        const algaeTypeV = document.getElementById('algae-type');
+        
+        const algaeGreen = document.getElementById('algae-green');
+        const algaeBrown = document.getElementById('algae-brown');
+        const water = document.getElementById('water');
+        const sky = document.getElementById('sky');
+        const statusMsg = document.getElementById('status-message');
+        
+        // Entidades
+        const trout = document.getElementById('trout');
+        const carp = document.getElementById('carp');
+        const catfish = document.getElementById('catfish');
+        const bird = document.getElementById('bird');
+
+        function updateEcosystem() {
+            const temp = parseInt(tempS.value);
+            const nut = parseInt(nutS.value);
+            const light = parseInt(lightS.value);
+
+            tempV.textContent = temp;
+            nutV.textContent = nut;
+            lightV.textContent = light;
+
+            // 1. Cálculo de Oxígeno (baja con calor y exceso de nutrientes por bacterias que descomponen algas)
+            let oxygenLevel = 100 - (temp * 1.5) - (nut * 0.5);
+            if (oxygenLevel < 0) oxygenLevel = 0;
+
+            if (oxygenLevel > 70) { o2V.textContent = "Excelente 🔵"; o2V.style.color = "#87CEEB"; }
+            else if (oxygenLevel > 40) { o2V.textContent = "Moderado 🟡"; o2V.style.color = "#FFEB3B"; }
+            else { o2V.textContent = "Pobre 🔴"; o2V.style.color = "#F44336"; }
+
+            // 2. Lógica de Algas
+            algaeGreen.style.opacity = 0;
+            algaeBrown.style.opacity = 0;
+            algaeTypeV.textContent = "Ninguna";
+
+            if (nut > 20) {
+                if (temp >= 20) {
+                    algaeGreen.style.opacity = nut / 100;
+                    algaeTypeV.textContent = "Cianobacterias (Verdes) 🌿";
+                    algaeTypeV.style.color = "#4CAF50";
+                } else {
+                    algaeBrown.style.opacity = nut / 100;
+                    algaeTypeV.textContent = "Diatomeas (Pardas) 🟤";
+                    algaeTypeV.style.color = "#8B7355";
+                }
+            }
+
+            // 3. Lógica de Peces
+            let troutAlive = (temp >= 5 && temp <= 22 && oxygenLevel > 50);
+            let carpAlive = (temp >= 15 && temp <= 32 && oxygenLevel > 30);
+            let catfishAlive = (temp >= 10 && temp <= 38 && oxygenLevel > 15);
+
+            trout.style.opacity = troutAlive && light > 10 ? '1' : '0';
+            carp.style.opacity = carpAlive && light > 10 ? '1' : '0';
+            catfish.style.opacity = catfishAlive ? '1' : '0'; // Bagre sobrevive a oscuras
+
+            // 4. Lógica de la Garza (Depredador)
+            // Aparece si hay comida cerca de la superficie y es de día
+            if ((troutAlive || carpAlive) && light > 40) {
+                bird.style.opacity = '1';
+            } else {
+                bird.style.opacity = '0';
+            }
+
+            // 5. Oscuridad
+            let darkness = 1 - (light / 100);
+            water.style.filter = `brightness(${1 - (darkness * 0.6)})`;
+            sky.style.filter = `brightness(${1 - (darkness * 0.4)})`;
+
+            // 6. Mensaje de Estado
+            if (!troutAlive && !carpAlive && !catfishAlive) {
+                statusMsg.textContent = "Zona Muerta: Sin peces vivos";
+                statusMsg.style.color = "#F44336";
+            } else if (troutAlive && carpAlive && catfishAlive) {
+                statusMsg.textContent = "Ecosistema Diverso y Saludable";
+                statusMsg.style.color = "#4CAF50";
+            } else {
+                statusMsg.textContent = "Ecosistema en Transición";
+                statusMsg.style.color = "#FFEB3B";
+            }
+        }
+
+        // Event Listeners
+        tempS.addEventListener('input', updateEcosystem);
+        nutS.addEventListener('input', updateEcosystem);
+        lightS.addEventListener('input', updateEcosystem);
+
+        updateEcosystem();
+    </script>
+</body>
+</html>
