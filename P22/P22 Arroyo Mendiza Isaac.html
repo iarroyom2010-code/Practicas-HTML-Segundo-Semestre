@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Práctica 22 - Multimedia</title>
+    <style>
+        body {
+            background-color: #DA8A1A;
+            color: #000000;
+            margin: 50px;
+            font-family: 'Gotham', sans-serif;
+        }
+        h1 {
+            text-align: center;
+        }
+        h2 {
+            text-align: center;
+            font-style: italic;
+            font-weight: normal;
+        }
+        table {
+            width: 1200px;
+            border: 5px solid black;
+            border-collapse: separate;
+            border-spacing: 5px;
+            margin: 0 auto;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 15px;
+            vertical-align: middle;
+        }
+        /* Ajuste para que los encabezados destaquen un poco */
+        th {
+            background-color: #c47b17;
+            text-align: center;
+        }
+        .video-section {
+            margin-top: 50px;
+        }
+        .video-title {
+            color: #8B0000;
+            font-style: italic;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Multimedia</h1>
+    <h2>Historia de la Música. Periodo y composición</h2>
+
+    <table>
+        <tr>
+            <th>Periodo</th>
+            <th>Compositor</th>
+            <th>Imagen</th>
+            <th>Composición</th>
+        </tr>
+        
+        <tr>
+            <th>Edad Media y Renacimiento</th>
+            <td>
+                <strong>Claudio Monteverdi</strong><br>
+                Nació en Italia. (1567-1643), una de sus obras más importantes fue:<br><br>
+                <strong>DULCÍSIMO SEÑOR</strong>
+            </td>
+            <td><img src="tu_imagen_monteverdi.jpg" alt="Claudio Monteverdi" width="150"></td>
+            <td>
+                <audio controls preload="auto">
+                    <source src="dulcisimo_senor.mp3" type="audio/mpeg">
+                </audio>
+            </td>
+        </tr>
+
+        <tr>
+            <th>barroco</th>
+            <td>
+                <strong>Georg Friedrich Händel</strong><br>
+                Nació en Halle, Alemania (1685-1759)...<br><br>
+                <strong>LLEGADA DE LA REINA DE SABA</strong>
+            </td>
+            <td><img src="tu_imagen_handel.jpg" alt="Handel" width="150"></td>
+            <td>
+                <audio controls preload="auto">
+                    <source src="reina_de_saba.mp3" type="audio/mpeg">
+                </audio>
+            </td>
+        </tr>
+        
+        </table>
+
+    <div class="video-section">
+        <h3 class="video-title">VIDEOS INTERESANTES</h3>
+
+        <h4 class="video-title">ECLIPSE TOTAL DE SOL</h4>
+        <video width="300" height="500" controls preload="auto">
+            <source src="tu_video_eclipse.mp4" type="video/mp4">
+        </video>
+
+        <h4 class="video-title">HIMNO DEL POLITÉCNICO</h4>
+        <video width="300" height="500" controls preload="auto">
+            <source src="tu_video_himno.mp4" type="video/mp4">
+        </video>
+
+        <h4 class="video-title">AMIGOS DE SNOOPY</h4>
+        <video width="500" height="400" controls preload="auto">
+            <source src="tu_video_snoopy.mp4" type="video/mp4">
+        </video>
+    </div>
+
+</body>
+</html>
